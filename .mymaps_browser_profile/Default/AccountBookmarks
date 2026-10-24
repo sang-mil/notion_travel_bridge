@@ -1,0 +1,48 @@
+{
+   "checksum": "9d3e9933aa0bba0bb1b01650e42c3d4a",
+   "roots": {
+      "bookmark_bar": {
+         "children": [  ],
+         "date_added": "13437242058020066",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "5",
+         "name": "북마크바",
+         "type": "folder"
+      },
+      "other": {
+         "children": [ {
+            "date_added": "13434186448028968",
+            "date_last_used": "0",
+            "guid": "997c9841-acca-4ae6-8e41-f5d68372d55c",
+            "id": "8",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Open WebUI",
+            "type": "url",
+            "url": "http://localhost:8080/"
+         } ],
+         "date_added": "13437242058020066",
+         "date_last_used": "0",
+         "date_modified": "13434186448028968",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "6",
+         "name": "기타 북마크",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13437242058020066",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "7",
+         "name": "모바일 북마크",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "CuABCr8BCIiBAhK4ASAAkgGjAQqgAQoOY2hyb21lX3N5bmNfYm0SBTUxIWJtGhIJPVRNb4NeBgARPVRNb4NeBgAiNAkdLjBvg14GABADGSaNzLvGSY15IAEqHDUxIWJtL2ZkOjkxNjM3MjM1NTk0Njg4OTMxNjEiNAkdLjBvg14GABADGSaNzLvGSY15IAEqHDUxIWJtL2ZkOjkxNjM3MjM1NTk0Njg4OTMxNjEpOA1Ob4NeBgDqAQwIzfPt1gYQyJuelwESACoYWHRQbHB3WUcxVTcvUlJORnJ6V2thUT09SAMSwQEIBxK8AQocbmpnRHU4OGVDcnZYcDg2cEQ3ZkhHY3FGcDg4PRJmWjpBRHF0QVp5NFNkTVBjenlodjNzQjN4eEpKZ1ZnVGF3WkdkYkdIRGtzdFNYV1hHVS9EWitURjJPUkZ2bkN5aDd1NTE4MEx2ZUF0aldCWlNlYW0zWUsxYkViRmZDL0s2dXQrQT09GAAgACgAMJL2o8349pYDOABAAEoceXpOQjAxY241NEE3Y1JVMHVUKy9QZ21UdFVvPWUAAAAAEusBCAgS5gEKHHFqTHZXK3hxdXZGWEp6ejNsMlh2WE91Mkc0UT0SZlo6QURxdEFaeno1NE1RdmZDcHpucFJFUWpveE1mc092SGQzY09oUUwwNVdObVM3N2F3Zi9LTjR0MEFNbk1WeTlGWVJQdWUwMUNVejFlL1Nad0w2VXdwdk9VRE1RVkpid09Xdmc9PRgAIAAoADD4oKj1v/eWAzigqcuZizRAoKnLmYs0ShwzNXFsSkhzR3JlWGZjUkJDYXVnTFRtTldPb1E9Wh4iHEhBMFg3SEs4NDh1MHlvRTdxeUMrQTJkcHJzST1lN46w2hLBAQgGErwBChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EmZaOkFEcXRBWnhndjVkK09JYmNURTh5QlZCZVAxRk52MmUrNXNSY3l2WDZna0Z1V1FxRmpyUVkvbjI5OEJ5MHdodTAxU3hXNExua3F2Z09VWFl5eWVKZ1o4Sk54ZnVONmNtSVBRPT0YACAAKAAwkvajzfj2lgM4AEAAShxvUFZraHdCUmJWNjVLQ1dSMitJT05IV29PdTg9ZQAAAAASqQEIBRKkAQoceXhKLzZmdmtlY3I3a3A1RVF6QjR0V0xwZGJFPRJOWjpBRHF0QVp3RitMVG9nYzV5QitHWVFOdVVKVm43U2M5K211WURVOHUrUnZIRjQrZFd2R0gySmd0WmlKMFQ4SzNLY09lQ0xod0NJbGpPGAAgACgAMJL2o8349pYDOABAAEocYVJDV0xnaEY5YjVJbnFLSUR2dUovanZRa0ZjPWUAAAAAMAE4AA==",
+   "version": 1
+}

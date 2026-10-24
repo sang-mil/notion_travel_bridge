@@ -1,0 +1,47 @@
+0:09:24 Tab1 StartNav80 #google #renderer-user #link
+0:09:24 Tab1 FinishNav80
+0:09:29 Tab1 StartNav81 #google #renderer-user #link
+0:09:29 Tab1 FinishNav81
+0:09:30 Tab1 StartNav82 #google #renderer-user #link
+0:09:30 Tab1 FinishNav82
+0:09:30 Tab1 StartNav83 #google #renderer-user #link
+0:09:30 Tab1 FinishNav83
+0:09:31 Tab1 StartNav84 #google #renderer-user #link
+0:09:31 Tab1 FinishNav84
+0:09:41 Tab1 StartNav85 #google #renderer-user #link
+0:09:41 Tab1 FinishNav85
+0:09:42 Tab1 StartNav86 #google #renderer-user #link
+0:09:42 Tab1 FinishNav86
+0:09:43 Tab1 StartNav87 #google #renderer-user #link
+0:09:43 Tab1 FinishNav87
+0:09:43 Tab1 StartNav88 #google #renderer-user #link
+0:09:43 Tab1 FinishNav88
+0:09:56 Tab1 StartNav89 #google #renderer-script #link
+0:09:56 Tab1 FinishNav89
+0:09:57 Tab1 StartNav90 #google #renderer-script #link
+0:09:57 Tab1 FinishNav90
+0:09:58 Tab1 StartNav91 #google #renderer-user #link
+0:09:58 Tab1 FinishNav91
+0:09:58 Tab1 StartNav92 #google #renderer-user #link
+0:09:58 Tab1 FinishNav92
+0:10:18 Tab1 StartNav93 #google #renderer-user #link
+0:10:18 Tab1 FinishNav93
+0:10:24 Tab1 StartNav94 #google #renderer-user #link
+0:10:24 Tab1 FinishNav94
+0:10:24 Tab1 StartNav95 #google #renderer-user #link
+0:10:24 Tab1 FinishNav95
+0:10:25 Tab1 StartNav96 #google #renderer-user #link
+0:10:25 Tab1 FinishNav96
+0:10:25 Tab1 StartNav97 #google #renderer-user #link
+0:10:25 Tab1 FinishNav97
+0:10:26 Tab1 StartNav98 #google #renderer-user #link
+0:10:26 Tab1 FinishNav98
+0:10:26 Tab1 StartNav99 #google #renderer-user #link
+0:10:26 Tab1 FinishNav99
+0:10:27 Tab1 StartNav100 #google #renderer-user #link
+0:10:27 Tab1 FinishNav100
+0:10:30 Widget Closed: StatusBubble
+0:10:35 Tab1 StartNav101 #google #renderer-user #link
+0:10:35 Tab1 FinishNav101
+0:10:46 Widget Closed: StatusBubble
+0:10:50 Browser1 Close Tab1 at 0
