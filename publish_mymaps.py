@@ -21,7 +21,8 @@ SCREENSHOT_DIR = OUTPUT_DIR / "browser_debug"
 MYMAPS_HOME = "https://www.google.com/mymaps"
 
 CREATE_MAP_NAMES = [r"Create a new map", r"새 지도 만들기", r"지도 만들기"]
-IMPORT_NAMES = [r"^Import$", r"^가져오기$"]
+IMPORT_NAMES = [r"^Import$", r"^가져오기$", r"^Import layer$", r"^레이어 가져오기$"]
+UPLOAD_TAB_NAMES = [r"^Upload$", r"^업로드$", r"^Upload file$", r"^파일 업로드$"]
 DEVICE_UPLOAD_NAMES = [
     r"Select a file from your device",
     r"기기에서 파일 선택",
@@ -101,69 +102,179 @@ def is_visible(locator: Locator) -> bool:
         return False
 
 
-def click_first_visible(page: Page, patterns: Iterable[str], *, timeout: int = 2500) -> bool:
-    """Try accessible controls first, then visible text. Names may be English or Korean."""
+def _iter_control_surfaces(page):
+    """Yield the active page, relevant Google popup pages, and their child frames."""
+    try:
+        context = page.context
+        pages = list(context.pages)
+    except Exception:
+        pages = [page]
+
+    ordered_pages = [page]
+    for candidate in pages:
+        if candidate is page:
+            continue
+        try:
+            if candidate.is_closed():
+                continue
+            url = (candidate.url or "").lower()
+        except Exception:
+            continue
+        if "google.com/maps/d/" in url or "drive.google.com" in url or "docs.google.com" in url:
+            ordered_pages.append(candidate)
+
+    seen = set()
+    for owner in ordered_pages:
+        try:
+            if owner.is_closed():
+                continue
+        except Exception:
+            pass
+        documents = [owner]
+        try:
+            documents.extend(frame for frame in owner.frames if frame != owner.main_frame)
+        except Exception:
+            pass
+        for document in documents:
+            key = id(document)
+            if key in seen:
+                continue
+            seen.add(key)
+            yield owner, document
+
+
+def _click_on_surface(document, patterns: Iterable[str], *, timeout: int = 2500) -> bool:
+    """Click a named UI control on one page or frame, including icon buttons with labels."""
     for pattern in patterns:
         regex = re.compile(pattern, re.IGNORECASE)
-        candidates = [
-            page.get_by_role("button", name=regex),
-            page.get_by_role("link", name=regex),
-            page.get_by_role("menuitem", name=regex),
-            page.get_by_text(regex),
-        ]
-        for candidate_group in candidates:
+        candidates = []
+        for role in ("button", "link", "menuitem", "tab", "radio", "checkbox"):
             try:
-                count = min(candidate_group.count(), 8)
+                group = document.get_by_role(role, name=regex)
+                candidates.extend(group.nth(i) for i in range(min(group.count(), 12)))
+            except Exception:
+                pass
+        try:
+            group = document.get_by_text(regex)
+            candidates.extend(group.nth(i) for i in range(min(group.count(), 12)))
+        except Exception:
+            pass
+
+        seen_candidates = set()
+        for candidate in candidates:
+            try:
+                if not is_visible(candidate):
+                    continue
+                identity = candidate.evaluate(
+                    "el => [el.tagName,el.getAttribute('aria-label'),el.getAttribute('title'),"
+                    "el.getAttribute('data-tooltip'),el.innerText||el.textContent].join('|')"
+                )
+                if identity in seen_candidates:
+                    continue
+                seen_candidates.add(identity)
+                try:
+                    candidate.click(timeout=timeout, force=True)
+                    return True
+                except Exception:
+                    candidate.evaluate("""el => {
+                        const selector = 'button,a,[role=button],[role=link],[role=tab],[tabindex],'
+                          + '[aria-label],[title],[data-tooltip],.goog-toolbar-button';
+                        const target = el.closest(selector) || el.parentElement || el;
+                        target.click();
+                    }""")
+                    return True
+            except Exception:
+                continue
+
+        # Icon-only My Maps controls sometimes expose only aria-label, title or data-tooltip.
+        selectors = (
+            "button[aria-label]", "[role='button'][aria-label]", "[role='link'][aria-label]",
+            "[role='tab'][aria-label]", "[title]", "[data-tooltip]", ".goog-toolbar-button"
+        )
+        for selector in selectors:
+            try:
+                group = document.locator(selector)
+                count = min(group.count(), 24)
             except Exception:
                 count = 0
             for index in range(count):
-                candidate = candidate_group.nth(index)
-                if not is_visible(candidate):
-                    continue
+                item = group.nth(index)
                 try:
-                    candidate.click(timeout=timeout)
+                    if not is_visible(item):
+                        continue
+                    values = [
+                        item.get_attribute("aria-label") or "",
+                        item.get_attribute("title") or "",
+                        item.get_attribute("data-tooltip") or "",
+                        item.inner_text(timeout=250) or "",
+                    ]
+                    if not any(regex.search(value.strip()) for value in values if value.strip()):
+                        continue
+                    try:
+                        item.click(timeout=timeout, force=True)
+                    except Exception:
+                        item.evaluate("""el => {
+                            const selector = 'button,a,[role=button],[role=link],[role=tab],[tabindex],'
+                              + '[aria-label],[title],[data-tooltip],.goog-toolbar-button';
+                            (el.closest(selector) || el.parentElement || el).click();
+                        }""")
                     return True
                 except Exception:
                     continue
+    return False
+
+
+def click_first_visible(page: Page, patterns: Iterable[str], *, timeout: int = 2500) -> bool:
+    """Search the current My Maps page, child frames and related Google popup tabs."""
+    for _owner, document in _iter_control_surfaces(page):
+        if _click_on_surface(document, patterns, timeout=timeout):
+            return True
     return False
 
 
 def click_control_by_exact_name(page: Page, names: Iterable[str], timeout: int = 2500) -> bool:
-    for name in names:
-        regex = re.compile(name, re.IGNORECASE)
-        for role in ("button", "link", "menuitem", "radio", "checkbox"):
-            try:
-                loc = page.get_by_role(role, name=regex)
-                count = min(loc.count(), 8)
-            except Exception:
-                count = 0
-            for index in range(count):
-                item = loc.nth(index)
-                if not is_visible(item):
-                    continue
+    """Choose a labelled column control even if the wizard is rendered in an iframe."""
+    for _owner, document in _iter_control_surfaces(page):
+        for name in names:
+            regex = re.compile(name, re.IGNORECASE)
+            for role in ("button", "link", "menuitem", "radio", "checkbox", "option"):
                 try:
-                    if role == "checkbox":
-                        try:
-                            if item.get_attribute("aria-checked") == "true" or item.is_checked():
-                                return True
-                        except Exception:
-                            pass
-                    item.click(timeout=timeout)
-                    return True
+                    loc = document.get_by_role(role, name=regex)
+                    count = min(loc.count(), 12)
                 except Exception:
-                    continue
-        # Labels and custom UI elements frequently have no useful role.
-        try:
-            loc = page.get_by_text(regex)
-            for index in range(min(loc.count(), 8)):
-                item = loc.nth(index)
-                if is_visible(item):
-                    item.click(timeout=timeout)
+                    count = 0
+                for index in range(count):
+                    item = loc.nth(index)
+                    try:
+                        if not is_visible(item):
+                            continue
+                        if role == "checkbox":
+                            try:
+                                if item.get_attribute("aria-checked") == "true" or item.is_checked():
+                                    return True
+                            except Exception:
+                                pass
+                        item.click(timeout=timeout, force=True)
+                        return True
+                    except Exception:
+                        continue
+            try:
+                loc = document.get_by_text(regex)
+                for index in range(min(loc.count(), 12)):
+                    item = loc.nth(index)
+                    if not is_visible(item):
+                        continue
+                    try:
+                        item.click(timeout=timeout, force=True)
+                    except Exception:
+                        item.evaluate("""el => {
+                            const selector = 'button,a,[role=button],[role=radio],[role=option],[tabindex],label';
+                            (el.closest(selector) || el.parentElement || el).click();
+                        }""")
                     return True
-        except Exception:
-            continue
+            except Exception:
+                continue
     return False
-
 
 def wait_for_manual_login(page: Page) -> None:
     """Require a pre-authenticated profile; never request Google login inside automation."""
@@ -217,34 +328,50 @@ def create_new_map(page: Page, context: BrowserContext) -> tuple[Page, str]:
             "create-map",
         )
 
-    # A new map may open in the same page or in a popup/tab.
-    page.wait_for_timeout(3500)
-    # Some My Maps home-page links open the map editor in a new tab.
+    # My Maps may first show a Google Drive confirmation dialog with an exact CREATE button.
+    # Look for it after clicking the home-page Create control, before expecting the editor URL.
+    create_deadline = time.monotonic() + 8
+    while time.monotonic() < create_deadline:
+        try:
+            if any(is_edit_map_url(candidate.url) for candidate in context.pages):
+                break
+        except Exception:
+            pass
+        if click_first_visible(
+            page,
+            [r"^\s*CREATE\s*$", r"^\s*만들기\s*$", r"^\s*생성\s*$"],
+            timeout=1200,
+        ):
+            print("Google Drive 팝업/프레임의 'CREATE' 버튼을 클릭했습니다.")
+            page.wait_for_timeout(1200)
+            break
+        page.wait_for_timeout(350)
+
+    page.wait_for_timeout(1800)
+    # The editor may open in the current tab or in a new tab.
     try:
-        candidate_pages = list(context.pages)
-        editor_pages = [candidate for candidate in candidate_pages if is_edit_map_url(candidate.url)]
+        editor_pages = [candidate for candidate in context.pages if is_edit_map_url(candidate.url)]
         if editor_pages:
             page = editor_pages[-1]
     except Exception:
         pass
+
     if not is_edit_map_url(page.url):
         prompt_for_manual_action(
             page,
-            "빈 지도를 여세요. 새 지도 편집 화면이 열린 것을 확인한 뒤 계속하세요.",
-            "wait-map-editor",
+            f"Create를 눌렀지만 새 지도 편집 화면을 확인하지 못했습니다. 현재 주소: {page.url}",
+            "create-map-editor-not-opened",
         )
 
     if not is_edit_map_url(page.url):
-        # Check if Google opened a link that changed URL only after interaction.
         try:
             page.wait_for_url(re.compile(r".*(maps/d/edit|mid=).*"), timeout=5000)
         except PlaywrightTimeoutError:
             raise AutomationError(
-                f"새 지도 편집 URL을 확인할 수 없습니다. 현재 주소: {page.url}\n"
+                f"새 지도 편집 URL을 확인할 수 없습니다. 현재 주소: {page.url}\\n"
                 "브라우저에서 지도를 만든 뒤 주소창 URL을 복사하고 다음 실행 때 --map-url로 전달하세요."
             )
     return page, page.url
-
 
 def is_edit_map_url(url: str) -> bool:
     lowered = url.lower()
@@ -252,51 +379,94 @@ def is_edit_map_url(url: str) -> bool:
 
 
 def use_file_input(page: Page, csv_path: Path) -> bool:
-    inputs = page.locator('input[type="file"]')
-    try:
-        count = inputs.count()
-    except Exception:
-        count = 0
-    # Hidden file inputs are supported by Playwright; use the last input because
-    # some pages keep an unrelated Drive/photo input in the DOM.
-    for index in reversed(range(count)):
-        item = inputs.nth(index)
+    """Set the CSV on any file input in the current editor, popup or embedded frame."""
+    for _owner, document in _iter_control_surfaces(page):
         try:
-            item.set_input_files(str(csv_path), timeout=5000)
-            return True
+            inputs = document.locator('input[type="file"]')
+            count = inputs.count()
         except Exception:
             continue
+        for index in reversed(range(count)):
+            item = inputs.nth(index)
+            try:
+                item.set_input_files(str(csv_path), timeout=5000)
+                print(f"CSV 파일 입력에 자동 첨부했습니다: {csv_path.name}")
+                return True
+            except Exception:
+                continue
+    return False
+
+
+def _choose_file_with_native_dialog(page: Page, csv_path: Path, names: Iterable[str]) -> bool:
+    """Register the native chooser listener before clicking the control that opens it."""
+    for owner, document in _iter_control_surfaces(page):
+        clicked = False
+        try:
+            with owner.expect_file_chooser(timeout=3000) as chooser_info:
+                clicked = _click_on_surface(document, names, timeout=1800)
+                if not clicked:
+                    raise RuntimeError("File chooser control not found on this surface")
+            chooser_info.value.set_files(str(csv_path))
+            owner.wait_for_timeout(1500)
+            print(f"CSV 파일 선택창에 자동으로 첨부했습니다: {csv_path.name}")
+            return True
+        except Exception:
+            # If the click opened an HTML upload pane rather than a native chooser,
+            # the next pass checks for a newly-created input instead of clicking blindly again.
+            if clicked:
+                try:
+                    owner.wait_for_timeout(400)
+                except Exception:
+                    pass
+                if use_file_input(page, csv_path):
+                    return True
     return False
 
 
 def upload_csv(page: Page, csv_path: Path) -> None:
-    # My Maps can show either a hidden input directly or a device-upload button.
-    if use_file_input(page, csv_path):
-        page.wait_for_timeout(2200)
-        return
-
-    clicked_device = click_first_visible(page, DEVICE_UPLOAD_NAMES, timeout=3000)
-    if clicked_device and use_file_input(page, csv_path):
-        page.wait_for_timeout(2200)
-        return
-
-    # Last resort: catch the native file chooser after selecting device upload.
-    if clicked_device:
+    # In the Import dialog, Upload can be a tab/button that must be clicked before
+    # the file input exists. Catch a native file chooser on that very first click too.
+    upload_tab_clicked = False
+    for owner, document in _iter_control_surfaces(page):
+        clicked = False
         try:
-            with page.expect_file_chooser(timeout=5000) as chooser_info:
-                click_first_visible(page, DEVICE_UPLOAD_NAMES, timeout=1500)
+            with owner.expect_file_chooser(timeout=1400) as chooser_info:
+                clicked = _click_on_surface(document, UPLOAD_TAB_NAMES, timeout=1800)
+                if not clicked:
+                    raise RuntimeError("Upload tab/button not found on this surface")
             chooser_info.value.set_files(str(csv_path))
-            page.wait_for_timeout(2200)
+            owner.wait_for_timeout(1500)
+            print(f"Upload 버튼을 누르고 CSV 파일을 자동 선택했습니다: {csv_path.name}")
             return
         except Exception:
-            pass
+            if clicked:
+                upload_tab_clicked = True
+                print("Import 팝업의 Upload 버튼을 클릭했습니다.")
+                break
+
+    # The Upload tab commonly reveals a hidden input after the click.
+    if use_file_input(page, csv_path):
+        page.wait_for_timeout(1800)
+        return
+
+    # Some UI versions have a second button such as 'Select a file from your device'.
+    if _choose_file_with_native_dialog(page, csv_path, DEVICE_UPLOAD_NAMES):
+        page.wait_for_timeout(1800)
+        return
+
+    # Last-chance poll: Google can attach the file input after an animation.
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if use_file_input(page, csv_path):
+            page.wait_for_timeout(1800)
+            return
+        page.wait_for_timeout(500)
 
     prompt_for_manual_action(
         page,
-        f"CSV 파일을 선택해야 합니다. 브라우저에서 이 파일을 직접 선택하세요:\n{csv_path}",
+        f"CSV 자동 첨부를 완료하지 못했습니다. 파일 선택창이 이미 열려 있으면 버튼을 다시 누르지 말고 이 파일을 한 번 선택하세요:\\n{csv_path}",
         "choose-csv",
     )
-
 
 def choose_column(page: Page, column_patterns: Iterable[str], stage_description: str, screenshot_tag: str) -> None:
     if click_control_by_exact_name(page, column_patterns, timeout=2500):
@@ -350,6 +520,32 @@ def safe_body_text(page: Page) -> str:
     except Exception:
         return ""
 
+
+def verify_import_result(page: Page) -> None:
+    """Avoid false failure when map pin labels are rendered on a canvas, not in body text."""
+    page.wait_for_timeout(3500)
+    if not is_edit_map_url(page.url):
+        raise AutomationError(f"CSV 가져오기 후 지도 편집 화면을 확인하지 못했습니다: {page.url}")
+
+    text_parts = []
+    for _owner, document in _iter_control_surfaces(page):
+        try:
+            text_parts.append(document.locator("body").inner_text(timeout=1200))
+        except Exception:
+            pass
+    combined = "\\n".join(text_parts)
+    still_in_wizard = re.search(
+        r"select the column|select a column|choose a column|position your placemarks|"
+        r"choose which columns|위치 지정 열|핀 제목 열|uploading|업로드 중",
+        combined,
+        re.IGNORECASE,
+    )
+    if still_in_wizard:
+        screenshot = safe_screenshot(page, "verify-import-wizard-open")
+        extra = f" 화면 스크린샷: {screenshot}" if screenshot else ""
+        raise AutomationError("CSV 가져오기 마법사가 아직 열려 있습니다. 열 선택/완료 단계를 확인하세요." + extra)
+
+    print("CSV 가져오기 확인: 지도 편집 화면이 유지되고 업로드/열 선택 마법사가 닫혔습니다.")
 
 def replace_existing_layer(page: Page, csv_path: Path) -> None:
     """Best-effort reimport of the existing layer; fall back to guided manual steps."""
@@ -411,6 +607,7 @@ def replace_existing_layer(page: Page, csv_path: Path) -> None:
             choose_column(page, TITLE_COLUMN_NAMES, "핀 제목 열: Place", "replace-title-column")
             click_first_visible(page, FINISH_NAMES, timeout=1500)
     page.wait_for_timeout(3000)
+    verify_import_result(page)
 
 
 def save_map_title_if_possible(page: Page, title: str) -> None:
@@ -508,6 +705,7 @@ def main() -> int:
                 page, final_map_url = create_new_map(page, context)
                 save_map_title_if_possible(page, map_title)
                 import_new_layer(page, CSV_PATH)
+                verify_import_result(page)
                 final_map_url = page.url or final_map_url
 
             config.update(
